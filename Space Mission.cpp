@@ -1,83 +1,228 @@
 #include <iostream>
-#include <vector>
 #include <fstream>
+#include <cmath>
+#include <vector>
+#include <algorithm>
+#include <map>
+#include <set>
+#include <deque>
+#include <stack>
+#include <queue>
+#include <climits>
+#include <string>
+#include <unordered_map>
+#define speed()                  \
+    ios::sync_with_stdio(false); \
+    cin.tie(0)
+#define file(name)                       \
+    speed();                             \
+    freopen(#name "in.txt", "r", stdin); \
+    freopen(#name "out.txt", "w", stdout)
+#define dbg(x) cout << '>' << #x << ':' << x << endl;
+#define ll long long
 using namespace std;
+ll gcd(ll a, ll b)
+{
+    if (b > a)
+    {
+        return gcd(b, a);
+    }
+    if (b == 0){
+        return a;
+    }
+    return gcd(b, a % b);
+    // LCM = (a*b)/gcd(a,b)
+}
+class SegmentTree
+{
+private:
+    vector<int> tree;
+    vector<int> arr;
+    int n;
+
+    void build(int node, int start, int end)
+    {
+        if (start == end)
+        {
+            // Leaf node will have a single element
+            tree[node] = arr[start];
+        }
+        else
+        {
+            int mid = (start + end) / 2;
+            // Recursively build the segment tree
+            build(2 * node, start, mid);
+            build(2 * node + 1, mid + 1, end);
+            // Internal node will have the sum of both of its children
+            tree[node] = tree[2 * node] + tree[2 * node + 1];
+        }
+    }
+
+    void update(int node, int start, int end, int idx, int val)
+    {
+        if (start == end)
+        {
+            // Leaf node
+            arr[idx] = val;
+            tree[node] = val;
+        }
+        else
+        {
+            int mid = (start + end) / 2;
+            if (start <= idx && idx <= mid)
+            {
+                // If idx is in the left child, recurse on the left child
+                update(2 * node, start, mid, idx, val);
+            }
+            else
+            {
+                // If idx is in the right child, recurse on the right child
+                update(2 * node + 1, mid + 1, end, idx, val);
+            }
+            // Internal node will have the sum of both of its children
+            tree[node] = tree[2 * node] + tree[2 * node + 1];
+        }
+    }
+
+    int query(int node, int start, int end, int l, int r)
+    {
+        if (r < start || end < l)
+        {
+            // range represented by a node is completely outside the given range
+            return 0;
+        }
+        if (l <= start && end <= r)
+        {
+            // range represented by a node is completely inside the given range
+            return tree[node];
+        }
+        // range represented by a node is partially inside and partially outside the given range
+        int mid = (start + end) / 2;
+        int p1 = query(2 * node, start, mid, l, r);
+        int p2 = query(2 * node + 1, mid + 1, end, l, r);
+        return p1 + p2;
+    }
+
+public:
+    SegmentTree(const vector<int> &inputArr)
+    {
+        arr = inputArr;
+        n = arr.size();
+        tree.resize(4 * n);
+        build(1, 0, n - 1);
+    }
+
+    void update(int idx, int val)
+    {
+        update(1, 0, n - 1, idx, val);
+    }
+
+    int query(int l, int r)
+    {
+        return query(1, 0, n - 1, l, r);
+    }
+};
+long long binpow(long long a, long long b, long long m)
+{
+    a %= m;
+    long long res = 1;
+    while (b > 0)
+    {
+        if (b & 1)
+            res = res * a % m;
+        a = a * a % m;
+        b >>= 1;
+    }
+    return res;
+}
+int countDigits(ll n)
+{
+    int digits = 0;
+    while (n > 0)
+    {
+        n /= 10;
+        digits++;
+    }
+    return digits;
+}
+vector<int> z_function(string s)
+{
+    int n = s.size();
+    vector<int> z(n);
+    int l = 0, r = 0;
+    for (int i = 1; i < n; i++)
+    {
+        if (i < r)
+        {
+            z[i] = min(r - i, z[i - l]);
+        }
+        while (i + z[i] < n && s[z[i]] == s[i + z[i]])
+        {
+            z[i]++;
+        }
+        if (i + z[i] > r)
+        {
+            l = i;
+            r = i + z[i];
+        }
+    }
+    return z;
+}
+void printv(const vector<int> &v)
+{
+    for (int i = 0; i < v.size(); i++)
+    {
+        cout << v[i] << " ";
+    }
+    cout << endl;
+}
+const int dx[5] {1, 0, -1, 0, 0}, dy[5]{0, 1, 0, -1, 0};
+
 int main()
 {
-    int n;
-    int f;
-    ifstream input("spacein.txt");
-    ofstream output("spaceout.txt");
-    input >> n;
-    input >> f;
-    vector<int> c(n, 0);
-    //l is increasing r is decreasing
-    vector<int> l;
-    vector<int> r;
-    vector<int> lh;
-    vector<int> rh;
-    for (int i = 0; i < n; i++) {
-        input >> c[i];
+    file(space);
+    ll n, f;
+    cin >> n >> f;
+    vector<ll> c(n);
+    for (int i = 0; i < n; i++)
+    {
+        cin >> c[i];
     }
-    int minl = f;
-    int minr = f;
-    for (int i = 0; i < n; i++) {
-        if (c[i] < minl) {
-            l.push_back(i);
-            minl = c[i];
-            if (c[i] <= f / 2) {
-                lh.push_back(i);
+    vector<pair<ll, ll>> final;
+    ll maxfuel = 1e18;
+    for (int i = n-1; i >= 0; i--){
+        if (c[i] < maxfuel){
+            final.push_back({c[i], i});
+            maxfuel = c[i];
+        }
+    }
+    reverse(final.begin(), final.end());
+    ll ans = -1;
+    for (int i = 0; i < n; i++){
+        ll f1 = c[i];
+        ll remain = f - f1;
+        //find the latest final that is less than or equal to remain
+        int l = 0, r = final.size()-1;
+        int ok = -1;
+        while (l <= r){
+            int mid = (l+r)/2;
+            if (final[mid].first <= remain){
+                ok = mid;
+                l = mid+1;
+            }
+            else{
+                r = mid-1;
             }
         }
-        if (c[n - i - 1] < minr) {
-            r.push_back(n - i - 1);
-            minr = c[n - i - 1];
-            if (c[n - i - 1] <= f / 2) {
-                rh.push_back(n - i - 1);
-            }
+        if (ok == -1){
+            continue;
         }
+        if (final[ok].second <= i){
+            continue;
+        }
+        ans = max(ans, final[ok].second - i+1);
+
     }
-    int lmaxlength = 0;
-    int rmaxlength = 0;
-    int lpass = r.size();
-    int rpass = l.size();
-    for (int i = 0; i < lh.size(); i++) {
-        for (int j = 0; j < lpass; j++) {
-            if (c[r[j]] + c[lh[i]] <= f) {
-                cout << "LPass: " << lh[i] << " " << r[j] << " Length: " << r[j] - lh[i] + 1 << "\n";
-                if (r[j] - lh[i] + 1 >= lmaxlength) {
-                    lmaxlength = r[j] - lh[i] + 1;
-                    lpass = j;
-                }
-                break;
-            }
-        }
-        if (r[0] - lh[i] + 3 < lmaxlength) {
-            break;
-        }
-    }
-    for (int i = 0; i < rh.size(); i++) {
-        for (int j = 0; j < rpass; j++) {
-            if (c[l[j]] + c[rh[i]] <= f) {
-                cout << "RPass: " << l[j] << " " << rh[i] << " Length: " << rh[i] - l[j] + 1 << "\n";
-                if (rh[i] - l[j] + 1 >= rmaxlength) {
-                    rmaxlength = rh[i] - l[j] + 1;
-                    rpass = j;
-                }
-                break;
-            }
-        }
-        if (rh[i] - l[0] + 3 < rmaxlength) {
-            break;
-        }
-    }
-    int ans = -1;
-    if (max(lmaxlength, rmaxlength) > 1) {
-        ans = max(lmaxlength, rmaxlength);
-    }
-    output << ans;
-    output.close();
-    input.close();
+    cout << ans << endl;
     return 0;
- 
 }
